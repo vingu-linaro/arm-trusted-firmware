@@ -27,6 +27,8 @@
 	((state)->pwr_domain_state[PLAT_MAX_PWR_LVL])
 
 static uintptr_t hikey_sec_entrypoint;
+static unsigned long stdby_scr[PLATFORM_CLUSTER_COUNT][PLATFORM_CORE_COUNT_PER_CLUSTER];
+
 static void hikey_cpu_standby(plat_local_state_t cpu_state)
 {
 	unsigned long scr;
@@ -122,6 +124,15 @@ static void hikey_pwr_domain_suspend(const psci_power_state_t *target_state)
 	unsigned int cluster =
 		(mpidr & MPIDR_CLUSTER_MASK) >> MPIDR_AFFINITY_BITS;
 
+	if ((CLUSTER_PWR_STATE(target_state) != PLAT_MAX_OFF_STATE) &&
+		(CORE_PWR_STATE(target_state) != PLAT_MAX_OFF_STATE)) {
+
+		stdby_scr[cpu][cluster] = read_scr_el3();
+
+		/* Enable Physical IRQ and FIQ to wake the CPU*/
+		write_scr_el3(stdby_scr[cpu][cluster] | SCR_IRQ_BIT | SCR_FIQ_BIT);
+	}
+
 	if (CORE_PWR_STATE(target_state) != PLAT_MAX_OFF_STATE)
 		return;
 
@@ -153,17 +164,25 @@ static void hikey_pwr_domain_suspend(const psci_power_state_t *target_state)
 
 static void hikey_pwr_domain_suspend_finish(const psci_power_state_t *target_state)
 {
-	unsigned long mpidr;
-	unsigned int cluster, cpu;
+	u_register_t mpidr = read_mpidr_el1();
+	unsigned int cpu = mpidr & MPIDR_CPU_MASK;
+	unsigned int cluster =
+		(mpidr & MPIDR_CLUSTER_MASK) >> MPIDR_AFFINITY_BITS;
+
+	if ((CLUSTER_PWR_STATE(target_state) != PLAT_MAX_OFF_STATE) &&
+		(CORE_PWR_STATE(target_state) != PLAT_MAX_OFF_STATE)) {
+
+		/*
+		 * Restore SCR to the original value, synchronisazion of
+		 * scr_el3 is done by eret while el3_exit to save some
+		 * execution cycles.
+		 */
+		write_scr_el3(stdby_scr[cpu][cluster]);
+	}
 
 	/* Nothing to be done on waking up from retention from CPU level */
 	if (CORE_PWR_STATE(target_state) != PLAT_MAX_OFF_STATE)
 		return;
-
-	/* Get the mpidr for this cpu */
-	mpidr = read_mpidr_el1();
-	cluster = (mpidr & MPIDR_CLUSTER_MASK) >> MPIDR_AFF1_SHIFT;
-	cpu = mpidr & MPIDR_CPU_MASK;
 
 	/* Enable CCI coherency for cluster */
 	if (CLUSTER_PWR_STATE(target_state) == PLAT_MAX_OFF_STATE)
@@ -250,11 +269,16 @@ int hikey_validate_power_state(unsigned int power_state,
 		 * It's possible to enter standby only on power level 0
 		 * Ignore any other power level.
 		 */
-		if (pwr_lvl != MPIDR_AFFLVL0)
-			return PSCI_E_INVALID_PARAMS;
+//		if (pwr_lvl != MPIDR_AFFLVL0)
+//			return PSCI_E_INVALID_PARAMS;
+//
+//		req_state->pwr_domain_state[MPIDR_AFFLVL0] =
+//					PLAT_MAX_RET_STATE;
 
-		req_state->pwr_domain_state[MPIDR_AFFLVL0] =
+		for (i = MPIDR_AFFLVL0; i <= pwr_lvl; i++)
+			req_state->pwr_domain_state[i] =
 					PLAT_MAX_RET_STATE;
+
 	} else {
 		for (i = MPIDR_AFFLVL0; i <= pwr_lvl; i++)
 			req_state->pwr_domain_state[i] =
