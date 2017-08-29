@@ -68,7 +68,9 @@ int psci_cpu_suspend(unsigned int power_state,
 	/*
 	 * Get the value of the state type bit from the power state parameter.
 	 */
-	is_power_down_state = psci_get_pstate_type(power_state);
+	//is_power_down_state = psci_get_pstate_type(power_state);
+	/* Force retention state unconditionally */
+	is_power_down_state = 0;
 
 	/* Sanity check the requested suspend levels */
 	assert(psci_validate_suspend_req(&state_info, is_power_down_state)
@@ -79,6 +81,9 @@ int psci_cpu_suspend(unsigned int power_state,
 		ERROR("Invalid target power level for suspend operation\n");
 		panic();
 	}
+
+	/* Ensure we have downgraded successfully */
+	assert(target_pwrlvl == 0);
 
 	/* Fast path for CPU standby.*/
 	if (is_cpu_standby_req(is_power_down_state, target_pwrlvl)) {

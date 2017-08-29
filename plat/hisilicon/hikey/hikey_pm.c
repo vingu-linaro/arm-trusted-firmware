@@ -264,26 +264,9 @@ int hikey_validate_power_state(unsigned int power_state,
 		return PSCI_E_INVALID_PARAMS;
 
 	/* Sanity check the requested state */
-	if (pstate == PSTATE_TYPE_STANDBY) {
-		/*
-		 * It's possible to enter standby only on power level 0
-		 * Ignore any other power level.
-		 */
-//		if (pwr_lvl != MPIDR_AFFLVL0)
-//			return PSCI_E_INVALID_PARAMS;
-//
-//		req_state->pwr_domain_state[MPIDR_AFFLVL0] =
-//					PLAT_MAX_RET_STATE;
-
-		for (i = MPIDR_AFFLVL0; i <= pwr_lvl; i++)
-			req_state->pwr_domain_state[i] =
-					PLAT_MAX_RET_STATE;
-
-	} else {
-		for (i = MPIDR_AFFLVL0; i <= pwr_lvl; i++)
-			req_state->pwr_domain_state[i] =
-					PLAT_MAX_OFF_STATE;
-	}
+	/* Downgrade all SUSPEND requests to CPU standby */
+	req_state->pwr_domain_state[MPIDR_AFFLVL0] =
+				PLAT_MAX_RET_STATE;
 
 	/*
 	 * We expect the 'state id' to be zero.
