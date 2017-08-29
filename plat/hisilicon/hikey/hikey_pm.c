@@ -27,6 +27,30 @@
 	((state)->pwr_domain_state[PLAT_MAX_PWR_LVL])
 
 static uintptr_t hikey_sec_entrypoint;
+static void hikey_cpu_standby(plat_local_state_t cpu_state)
+{
+	unsigned long scr;
+//	unsigned int val = 0;
+
+	assert(cpu_state == PLAT_MAX_RET_STATE);
+
+	scr = read_scr_el3();
+
+	/* Enable Physical IRQ and FIQ to wake the CPU*/
+	write_scr_el3(scr | SCR_IRQ_BIT | SCR_FIQ_BIT);
+
+//	set_retention_ticks(val);
+	wfi();
+//	clr_retention_ticks(val);
+
+	/*
+	 * Restore SCR to the original value, synchronisazion of
+	 * scr_el3 is done by eret while el3_exit to save some
+	 * execution cycles.
+	 */
+	write_scr_el3(scr);
+}
+
 
 static int hikey_pwr_domain_on(u_register_t mpidr)
 {
@@ -259,7 +283,7 @@ static int hikey_validate_ns_entrypoint(uintptr_t entrypoint)
 }
 
 static const plat_psci_ops_t hikey_psci_ops = {
-	.cpu_standby			= NULL,
+	.cpu_standby			= hikey_cpu_standby,
 	.pwr_domain_on			= hikey_pwr_domain_on,
 	.pwr_domain_on_finish		= hikey_pwr_domain_on_finish,
 	.pwr_domain_off			= hikey_pwr_domain_off,
