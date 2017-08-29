@@ -194,11 +194,13 @@ func bl31_warm_entrypoint
 	 * seen by the same core. Without the cache invalidate, the core might
 	 * write into a stale cache line.
 	 */
+	/* Disable Cache maintenance for PMF in case of warmboot */
+	/*
 	mov	x1, #PMF_TS_SIZE
 	mov	x20, x30
 	bl	inv_dcache_range
 	mov	x30, x20
-
+	*/
 	mrs	x0, cntpct_el0
 	str	x0, [x19]
 #endif

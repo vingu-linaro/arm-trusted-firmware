@@ -232,7 +232,7 @@ void __pmf_store_timestamp_with_cache_maint(uintptr_t base_addr,
 	unsigned long long *ts_addr = (unsigned long long *)calc_ts_addr(base_addr,
 				 tid, plat_my_core_pos());
 	*ts_addr = ts;
-	flush_dcache_range((uintptr_t)ts_addr, sizeof(unsigned long long));
+	//flush_dcache_range((uintptr_t)ts_addr, sizeof(unsigned long long));
 }
 
 /*
@@ -249,8 +249,8 @@ unsigned long long __pmf_get_timestamp(uintptr_t base_addr,
 	unsigned long long *ts_addr = (unsigned long long *)calc_ts_addr(base_addr,
 				tid, cpuid);
 
-	if (flags & PMF_CACHE_MAINT)
-		inv_dcache_range((uintptr_t)ts_addr, sizeof(unsigned long long));
+	//if (flags & PMF_CACHE_MAINT)
+	//	inv_dcache_range((uintptr_t)ts_addr, sizeof(unsigned long long));
 
 	return *ts_addr;
 }
